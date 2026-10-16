@@ -1,6 +1,7 @@
 import os
 import socket
 import sqlite3
+import queue
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +75,19 @@ class PathsAndUrls(unittest.TestCase):
         with sqlite3.connect(database) as con:
             self.assertEqual({r[0] for r in con.execute('SELECT id FROM jobs')}, {'active','waiting','stopping'})
         self.assertEqual(video.read_bytes(), b'keep file')
+
+    def test_500_links_enter_queue_and_remain_visible(self):
+        database = Path(self.temp.name)/'batch.sqlite3'
+        with sqlite3.connect(database) as con:
+            con.execute('CREATE TABLE jobs (id TEXT, url TEXT, title TEXT, height INTEGER, folder TEXT, status TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP)')
+        pending = queue.Queue(maxsize=main.MAX_ACTIVE_JOBS)
+        urls = [f'https://example.com/video-{n}.mp4' for n in range(500)]
+        with patch.object(main, 'DB', database), patch.object(main, 'pending', pending), patch.object(main, 'validate_url', side_effect=lambda url: url), patch.object(main, 'snapshot_revision', -1):
+            result = main.create_batch(main.BatchDownload(urls=urls))
+            self.assertEqual(len(result['accepted']), 500)
+            self.assertEqual(result['rejected'], [])
+            self.assertEqual(pending.qsize(), 500)
+            self.assertEqual(len(main.jobs()), 500)
 
     def test_invalid_url_forms(self):
         for value in ['file:///etc/passwd','ftp://example.com/v','https://user:secret@example.com/v','http://x:bad','https://example.com/\nheader','http://[broken']:

@@ -111,8 +111,8 @@ $('form').onsubmit = async event => {
     if (inputMode === 'batch') {
       const urls = $('urls').value.trim().split(/\r?\n/);
       if (!urls.some(url => url.trim())) throw Error('حداقل یک لینک وارد کن.');
-      if (urls.length > 50) throw Error('در هر نوبت حداکثر ۵۰ خط وارد کن.');
-      if (new TextEncoder().encode(JSON.stringify({urls,height:Number($('quality').value),folder:$('folder').value.trim()})).length > 16000) throw Error('حجم لینک‌ها زیاد است؛ آن‌ها را در چند دسته کوچک‌تر وارد کن.');
+      if (urls.length > 500) throw Error('در هر نوبت حداکثر ۵۰۰ خط وارد کنید.');
+      if (new TextEncoder().encode(JSON.stringify({urls,height:Number($('quality').value),folder:$('folder').value.trim()})).length > 1048576) throw Error('حجم لینک‌ها بیش از یک مگابایت است؛ آن‌ها را در چند دسته کوچک‌تر وارد کنید.');
       message('در حال بررسی لینک‌ها و اضافه‌کردن به صف…', false);
       const result = await api('/api/jobs/batch',{urls,height:Number($('quality').value),folder:$('folder').value.trim()});
       const summary = `${fa(result.accepted.length)} لینک به صف اضافه شد.${result.duplicates ? ` ${fa(result.duplicates)} لینک تکراری نادیده گرفته شد.` : ''}${result.rejected.length ? ` ${fa(result.rejected.length)} لینک اضافه نشد؛ جزئیات را پایین ببین.` : ''}`;

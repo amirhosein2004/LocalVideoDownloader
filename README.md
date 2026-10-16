@@ -61,13 +61,13 @@ Files are saved directly in your configured host folder. The completed job's dow
 
 ### Batch downloads
 
-Select batch mode and enter one link per line, up to 50 lines per request. All links share the selected quality limit and destination folder.
+Select batch mode and enter one link per line, up to 500 lines per request. All links share the selected quality limit and destination folder.
 
 - Duplicate links within the same batch are ignored.
 - Invalid links are reported by line without preventing valid links from entering the queue.
 - Two downloads run concurrently; the remaining jobs wait in the queue.
 - Cancellation and retry are available separately for each job.
-- The queue allows at most 100 active jobs. Request size is limited; submit smaller batches for unusually long links.
+- The queue allows at most 1,000 queued or running jobs. Batch requests are limited to 1 MiB; submit smaller batches for unusually long links.
 
 ### YouTube and supported sites
 
@@ -113,9 +113,9 @@ Enter paths without quotes. The web form does not expand `~`, `$HOME` or `%USERP
 
 ## Download history
 
-The interface shows the latest 100 jobs, with 10 matching results per page. Filters return to the first page. Older records stay in SQLite until you clear history.
+The interface shows the latest 1,000 jobs, with 10 matching results per page. Filters return to the first page. Older records stay in SQLite until you clear history.
 
-“Clear history” asks for confirmation and removes all finished, failed, cancelled and interrupted records, including those outside the latest 100. Queued jobs, running jobs and subprocesses still stopping are protected. Video files and partial files remain on disk. Cleared records can no longer be retried or accessed through the app; existing files can still be opened from their folder.
+“Clear history” asks for confirmation and removes all finished, failed, cancelled and interrupted records, including those outside the latest 1,000. Queued jobs, running jobs and subprocesses still stopping are protected. Video files and partial files remain on disk. Cleared records can no longer be retried or accessed through the app; existing files can still be opened from their folder.
 
 Change the mounted folder only when no downloads are running. Existing files are not moved. History is preserved, but files in the previous folder cannot be retrieved through the new mount.
 

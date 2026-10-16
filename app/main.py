@@ -30,7 +30,11 @@ STATIC = Path(__file__).parent / 'static'
 ROOT.mkdir(parents=True, exist_ok=True)
 DATA.mkdir(parents=True, exist_ok=True)
 DB = DATA / 'jobs.sqlite3'
-pending = queue.Queue(maxsize=100)
+MAX_BATCH_LINKS = 500
+MAX_ACTIVE_JOBS = 1000
+MAX_BATCH_BYTES = 1024 * 1024
+HISTORY_LIMIT = 1000
+pending = queue.Queue(maxsize=MAX_ACTIVE_JOBS)
 processes = {}
 lock = threading.RLock()
 stopping = threading.Event()
@@ -218,8 +222,9 @@ async def origin_check(request: Request, call_next):
         if request.headers.get('content-type', '').split(';')[0].strip() != 'application/json':
             return JSONResponse({'detail':'Content-Type must be application/json'}, status_code=415)
         body = bytearray()
+        body_limit = MAX_BATCH_BYTES if request.url.path == '/api/jobs/batch' else 16384
         async for chunk in request.stream():
-            if len(body) + len(chunk) > 16384:
+            if len(body) + len(chunk) > body_limit:
                 return JSONResponse({'detail':'Request body too large'}, status_code=413)
             body.extend(chunk)
         request._body = bytes(body)
@@ -238,7 +243,7 @@ class Download(Inspect):
     folder: str = Field(default='', max_length=1024)
 
 class BatchDownload(BaseModel):
-    urls: list[str] = Field(min_length=1, max_length=50)
+    urls: list[str] = Field(min_length=1, max_length=MAX_BATCH_LINKS)
     height: int = Field(default=480, ge=0, le=4320)
     folder: str = Field(default='', max_length=1024)
 
@@ -269,7 +274,7 @@ def jobs():
     with snapshot_lock:
         if snapshot_revision != revision:
             with db() as con:
-                snapshot_rows = [dict(r) for r in con.execute('SELECT * FROM jobs ORDER BY created DESC, rowid DESC LIMIT 100')]
+                snapshot_rows = [dict(r) for r in con.execute('SELECT * FROM jobs ORDER BY created DESC, rowid DESC LIMIT ?', (HISTORY_LIMIT,))]
             snapshot_revision = revision
         return snapshot_rows
 
@@ -280,7 +285,7 @@ def create(body: Download):
     job_id = uuid.uuid4().hex
     with lock, db() as con:
         active = con.execute("SELECT count(*) FROM jobs WHERE status IN ('queued','running')").fetchone()[0]
-        if active >= 100 or pending.full():
+        if active >= MAX_ACTIVE_JOBS or pending.full():
             raise HTTPException(429, 'صف دانلود پر است؛ بعداً تلاش کنید')
         con.execute('INSERT INTO jobs (id,url,title,height,folder,status) VALUES (?,?,?,?,?,?)', (job_id,body.url,body.title,body.height,body.folder,'queued'))
         pending.put_nowait(job_id)

@@ -137,7 +137,7 @@ class Integration(unittest.TestCase):
 
     def test_queue_limit(self):
         with sqlite3.connect(self.base/'data'/'jobs.sqlite3') as con:
-            con.executemany("INSERT INTO jobs(id,status) VALUES (?,'queued')",[(f'limit-{n}',) for n in range(100)])
+            con.executemany("INSERT INTO jobs(id,status) VALUES (?,'queued')",[(f'limit-{n}',) for n in range(1000)])
         try:
             with self.assertRaises(urllib.error.HTTPError) as error:
                 self.api('/api/jobs',{'url':self.source})
@@ -178,11 +178,21 @@ class Integration(unittest.TestCase):
 
     def test_batch_limit_and_shared_path_validation(self):
         before=len(self.api('/api/jobs'))
-        for body,status in [({'urls':[self.source]*51},422),({'urls':[]},422),({'urls':[self.source],'folder':'../outside'},400)]:
+        for body,status in [({'urls':[self.source]*501},422),({'urls':[]},422),({'urls':[self.source],'folder':'../outside'},400)]:
             with self.subTest(body=body), self.assertRaises(urllib.error.HTTPError) as error:
                 self.api('/api/jobs/batch',body)
             self.assertEqual(error.exception.code,status)
         self.assertEqual(len(self.api('/api/jobs')),before)
+
+    def test_large_batch_request_and_body_limit(self):
+        # Exercise all 500 lines and the former 16 KiB boundary without downloads.
+        urls = ['invalid-' + str(n) + '-' + 'x'*80 for n in range(500)]
+        result = self.api('/api/jobs/batch', {'urls': urls})
+        self.assertEqual(len(result['rejected']), 500)
+        self.assertEqual(result['accepted'], [])
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.api('/api/jobs/batch', {'urls': ['x' * (1024*1024)]})
+        self.assertEqual(error.exception.code, 413)
 
 
 if __name__=='__main__':
