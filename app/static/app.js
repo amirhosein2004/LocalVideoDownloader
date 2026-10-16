@@ -224,7 +224,7 @@ function render(jobs) {
     const empty = document.createElement('div'); empty.className = 'empty';
     empty.innerHTML = '<span>↙</span><strong></strong><p></p>';
     empty.querySelector('strong').textContent = jobs.length ? 'موردی یافت نشد.' : 'دانلودی ثبت نشده است.';
-    empty.querySelector('p').textContent = jobs.length ? 'فیلتر دیگری را انتخاب کن.' : 'اولین لینک را بالا وارد کن؛ بقیه با روان.';
+    empty.querySelector('p').textContent = jobs.length ? 'فیلتر دیگری را انتخاب کن.' : 'لینک ویدیو را وارد کنید.';
     $('jobs').append(empty);
   }
 }

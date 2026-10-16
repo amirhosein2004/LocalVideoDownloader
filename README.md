@@ -1,4 +1,4 @@
-# Rawan — Local Video Downloader
+# LocalVideoDownloader
 
 A local video downloader with a Persian, right-to-left web interface. Download supported video pages, direct media URLs, HLS and DASH streams, select a quality limit, and manage downloads individually or in batches.
 
