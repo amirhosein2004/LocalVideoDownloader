@@ -63,6 +63,10 @@ Files are saved directly in your configured host folder. The completed job's dow
 
 Select batch mode and enter one link per line, up to 500 lines per request. All links share the selected quality limit and destination folder.
 
+Batch files start with the original line number, for example `001-Lesson title-a1b2c3d4.mp4`. Sort files by name to keep lesson order regardless of which download finishes first. The short ID suffix prevents separate batches from overwriting each other's files. Blank, duplicate or rejected lines may leave gaps in numbering. Retries retain the same number. Existing jobs and single-link downloads keep their original naming scheme.
+
+Use a separate destination subfolder for each course, such as `DevOps/01-Associate`, `DevOps/02-Professional` and `DevOps/03-Expert`. Each submitted batch starts numbering from its first line; numbering does not automatically continue across separate submissions.
+
 - Duplicate links within the same batch are ignored.
 - Invalid links are reported by line without preventing valid links from entering the queue.
 - Two downloads run concurrently; the remaining jobs wait in the queue.

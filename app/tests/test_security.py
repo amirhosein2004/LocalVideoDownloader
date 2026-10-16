@@ -79,7 +79,7 @@ class PathsAndUrls(unittest.TestCase):
     def test_500_links_enter_queue_and_remain_visible(self):
         database = Path(self.temp.name)/'batch.sqlite3'
         with sqlite3.connect(database) as con:
-            con.execute('CREATE TABLE jobs (id TEXT, url TEXT, title TEXT, height INTEGER, folder TEXT, status TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP)')
+            con.execute('CREATE TABLE jobs (id TEXT, url TEXT, title TEXT, height INTEGER, folder TEXT, status TEXT, batch_index INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP)')
         pending = queue.Queue(maxsize=main.MAX_ACTIVE_JOBS)
         urls = [f'https://example.com/video-{n}.mp4' for n in range(500)]
         with patch.object(main, 'DB', database), patch.object(main, 'pending', pending), patch.object(main, 'validate_url', side_effect=lambda url: url), patch.object(main, 'snapshot_revision', -1):
@@ -88,6 +88,13 @@ class PathsAndUrls(unittest.TestCase):
             self.assertEqual(result['rejected'], [])
             self.assertEqual(pending.qsize(), 500)
             self.assertEqual(len(main.jobs()), 500)
+            self.assertEqual({job['batch_index'] for job in main.jobs()}, set(range(1,501)))
+
+    def test_single_and_batch_output_names(self):
+        job = {'id': 'abcdef123456', 'batch_index': 0}
+        self.assertEqual(main.output_template(job), 'abcdef12-%(title).120B.%(ext)s')
+        job['batch_index'] = 7
+        self.assertEqual(main.output_template(job), '007-%(title).120B-abcdef12.%(ext)s')
 
     def test_invalid_url_forms(self):
         for value in ['file:///etc/passwd','ftp://example.com/v','https://user:secret@example.com/v','http://x:bad','https://example.com/\nheader','http://[broken']:

@@ -104,6 +104,8 @@ class Integration(unittest.TestCase):
         job=self.wait_job(job['id'],require_progress=True)
         self.assertEqual(job['status'],'completed',job.get('error'))
         self.assertTrue(Path(job['file']).is_relative_to(self.base/'downloads'/'My Videos'))
+        self.assertEqual(job['batch_index'], 0)
+        self.assertTrue(Path(job['file']).name.startswith(job['id'][:8] + '-'))
         info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json',job['file']]))
         self.assertEqual(next(s for s in info['streams'] if s['codec_type']=='video')['height'],480)
         self.assertTrue(any(s['codec_type']=='audio' for s in info['streams']))
@@ -115,7 +117,8 @@ class Integration(unittest.TestCase):
         self.assertEqual(error.exception.code,409)
 
     def test_cancel_and_retry(self):
-        job=self.api('/api/jobs',{'url':self.source,'folder':'Retry'})
+        batch=self.api('/api/jobs/batch',{'urls':[self.source],'folder':'Retry'})
+        job=next(j for j in self.api('/api/jobs') if j['id']==batch['accepted'][0]['id'])
         self.assertEqual(self.api(f'/api/jobs/{job["id"]}/cancel',{})['status'],'cancelled')
         for _ in range(30):
             try:
@@ -124,7 +127,10 @@ class Integration(unittest.TestCase):
             except urllib.error.HTTPError as error:
                 self.assertEqual(error.code,409)
                 time.sleep(0.1)
-        self.assertEqual(self.wait_job(job['id'])['status'],'completed')
+        finished=self.wait_job(job['id'])
+        self.assertEqual(finished['status'],'completed')
+        self.assertEqual(finished['batch_index'],1)
+        self.assertTrue(Path(finished['file']).name.startswith('001-'))
 
     def test_bad_destination_and_unknown_job(self):
         for folder in ['../escape','D:/Unmapped','C:/Users/Test/Downloads/../../escape']:
@@ -174,6 +180,8 @@ class Integration(unittest.TestCase):
             job=self.wait_job(accepted['id'])
             self.assertEqual(job['status'],'completed',job.get('error'))
             self.assertEqual(job['height'],480)
+            self.assertEqual(job['batch_index'],accepted['line'])
+            self.assertTrue(Path(job['file']).name.startswith(f'{accepted["line"]:03d}-'))
             self.assertTrue(Path(job['file']).is_relative_to(self.base/'downloads'/'Batch Videos'))
 
     def test_batch_limit_and_shared_path_validation(self):

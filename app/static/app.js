@@ -167,7 +167,7 @@ function updateCard(card, job) {
   const node = card.node;
   node.className = `job ${job.status}`;
   node.querySelector('.job-icon').textContent = job.status === 'completed' ? '✓' : job.status === 'failed' ? '!' : '↓';
-  node.querySelector('strong').textContent = job.title;
+  node.querySelector('strong').textContent = job.batch_index ? `${String(job.batch_index).padStart(3,'0')} · ${job.title}` : job.title;
   node.querySelector('.status').textContent = job.status === 'running' ? phases[job.phase] || labels.running : labels[job.status] || job.status;
   let source = '';
   try { source = new URL(job.url).hostname; } catch {}

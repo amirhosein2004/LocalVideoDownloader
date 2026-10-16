@@ -118,6 +118,11 @@ def destination(value):
 def command():
     return [sys.executable, '-m', 'yt_dlp', '--ignore-config', '--no-cache-dir', '--no-playlist', '--no-warnings', '--socket-timeout', '20']
 
+def output_template(job):
+    if job.get('batch_index'):
+        return f'{job["batch_index"]:03d}-%(title).120B-{job["id"][:8]}.%(ext)s'
+    return job['id'][:8] + '-%(title).120B.%(ext)s'
+
 def worker():
     while not stopping.is_set():
         try:
@@ -133,7 +138,7 @@ def worker():
                 target.mkdir(parents=True, exist_ok=True)
                 update(job_id, status='running', phase='preparing', error='')
                 fmt = 'bestvideo+bestaudio/best' if job['height'] == 0 else f'bestvideo[height<=?{job["height"]}]+bestaudio/best[height<=?{job["height"]}]'
-                template = str(target / (job['id'][:8] + '-%(title).120B.%(ext)s'))
+                template = str(target / output_template(job))
                 args = command() + ['--newline', '--progress', '--progress-template', 'download:PROGRESS:%(progress)j', '--print', 'before_dl:TITLE:%(title)j', '--print', 'after_move:FILE:%(filepath)s', '--no-simulate', '--continue', '--retries', '5', '--fragment-retries', '5', '--abort-on-unavailable-fragments', '--concurrent-fragments', '4', '--merge-output-format', 'mp4', '--remux-video', 'mp4', '-f', fmt, '-o', template, '--', job['url']]
                 proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace', start_new_session=True)
                 processes[job_id] = proc
@@ -191,6 +196,8 @@ async def lifespan(app):
         con.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, url TEXT, title TEXT, height INTEGER, folder TEXT, status TEXT, progress REAL DEFAULT 0, speed REAL DEFAULT 0, eta REAL DEFAULT 0, error TEXT DEFAULT "", file TEXT DEFAULT "", created TEXT DEFAULT CURRENT_TIMESTAMP)')
         if 'phase' not in {row[1] for row in con.execute('PRAGMA table_info(jobs)')}:
             con.execute("ALTER TABLE jobs ADD COLUMN phase TEXT DEFAULT ''")
+        if 'batch_index' not in {row[1] for row in con.execute('PRAGMA table_info(jobs)')}:
+            con.execute('ALTER TABLE jobs ADD COLUMN batch_index INTEGER DEFAULT 0')
         con.execute('CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)')
         con.execute('CREATE INDEX IF NOT EXISTS jobs_created ON jobs(created)')
         con.execute("UPDATE jobs SET status='interrupted', speed=0 WHERE status IN ('queued','running')")
@@ -280,6 +287,9 @@ def jobs():
 
 @app.post('/api/jobs')
 def create(body: Download):
+    return enqueue(body)
+
+def enqueue(body: Download, batch_index=0):
     validate_url(body.url)
     destination(body.folder)
     job_id = uuid.uuid4().hex
@@ -287,7 +297,7 @@ def create(body: Download):
         active = con.execute("SELECT count(*) FROM jobs WHERE status IN ('queued','running')").fetchone()[0]
         if active >= MAX_ACTIVE_JOBS or pending.full():
             raise HTTPException(429, 'صف دانلود پر است؛ بعداً تلاش کنید')
-        con.execute('INSERT INTO jobs (id,url,title,height,folder,status) VALUES (?,?,?,?,?,?)', (job_id,body.url,body.title,body.height,body.folder,'queued'))
+        con.execute('INSERT INTO jobs (id,url,title,height,folder,status,batch_index) VALUES (?,?,?,?,?,?,?)', (job_id,body.url,body.title,body.height,body.folder,'queued',batch_index))
         pending.put_nowait(job_id)
     changed()
     return get_job(job_id)
@@ -320,7 +330,7 @@ def create_batch(body: BatchDownload):
         try:
             if len(url) > 8192:
                 raise HTTPException(400, 'لینک بیش از حد طولانی است')
-            job = create(Download(url=url, height=body.height, folder=body.folder))
+            job = enqueue(Download(url=url, height=body.height, folder=body.folder), batch_index=line)
             accepted.append({'line':line, 'id':job['id'], 'url':url})
         except HTTPException as error:
             rejected.append({'line':line, 'url':url, 'error':error.detail})
