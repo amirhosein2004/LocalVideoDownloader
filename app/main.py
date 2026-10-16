@@ -105,7 +105,7 @@ def destination(value):
     elif comparable.startswith(root_comparable + '/'):
         value = value[len(HOST_ROOT)+1:]
     if value.startswith('/') or re.match(r'^[a-zA-Z]:', value):
-        raise HTTPException(400, 'این مسیر متصل نیست؛ مسیر اصلی را در فایل .env تنظیم کنید یا زیرپوشه وارد کنید')
+        raise HTTPException(400, 'این مسیر متصل نیست؛ پوشه اصلی را با اسکریپت راه‌اندازی تغییر دهید یا زیرپوشه وارد کنید')
     target = (ROOT / value).resolve()
     if not target.is_relative_to(ROOT):
         raise HTTPException(400, 'مسیر باید داخل پوشه ذخیره باشد')

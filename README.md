@@ -24,7 +24,7 @@ powershell -NoProfile -File .\scripts\start.ps1
 sh scripts/start.sh
 ```
 
-The launcher creates a local `.env` file, starts the container, and opens the app in your browser when supported.
+The launcher detects your Downloads folder, passes it directly to Docker, and opens the app in your browser when supported. No configuration file is created.
 
 **Website address: http://127.0.0.1:8765**
 
@@ -36,25 +36,17 @@ Default download folders:
 | Linux | `xdg-user-dir DOWNLOAD`, falling back to `~/Downloads` |
 | macOS | `~/Downloads` |
 
-An existing `.env` is preserved, so subsequent launches keep your selected folder. Native macOS execution has not been tested in this development environment.
+Run the launcher each time you recreate the container to use your system Downloads folder. To use a custom folder, pass its path on each launch. Native macOS execution has not been tested in this development environment.
 
 ### Direct Docker Compose startup
 
-Copy `.env.example` to `.env` and replace `DOWNLOAD_DIR` with an absolute folder path on your computer. For example:
-
-```dotenv
-# Windows example; use forward slashes.
-DOWNLOAD_DIR='D:/Videos'
-APP_PORT=8765
-```
-
-On Linux or macOS, use a path such as `/home/yourname/Downloads` or `/Users/yourname/Downloads` instead. Then run:
+For a platform-independent startup without a launcher, run:
 
 ```sh
 docker compose up --build -d
 ```
 
-Open **http://127.0.0.1:8765**. If you change `APP_PORT`, use `http://127.0.0.1:<APP_PORT>` instead. Compose requires a configured download folder; the launchers can detect it automatically.
+This uses the `downloads/` folder inside the project, not your system Downloads folder. Use the platform launcher above to detect the system folder automatically. Open **http://127.0.0.1:8765**.
 
 ## Downloading videos
 
@@ -105,15 +97,9 @@ powershell -NoProfile -File .\scripts\start.ps1 -DownloadDirectory "D:\My Videos
 sh scripts/start.sh --download-dir "/mnt/storage/My Videos"
 ```
 
-Alternatively, edit `DOWNLOAD_DIR` in `.env` and apply the change:
+The web form accepts relative subfolders such as `Courses/DevOps` or full paths inside the mounted download folder. Subfolders are created automatically. For example, if the main folder is `D:/My Videos`, `D:/My Videos/Courses` is valid.
 
-```sh
-docker compose up -d
-```
-
-The web form accepts relative subfolders such as `Courses/DevOps` or full paths inside the mounted download folder. Subfolders are created automatically. For example, if `DOWNLOAD_DIR` is `D:/My Videos`, `D:/My Videos/Courses` is valid.
-
-Docker cannot access an arbitrary host folder merely because its path is entered in a web form. To use a path outside the mounted folder, first change the main folder through the launcher or `.env`.
+Docker cannot access an arbitrary host folder merely because its path is entered in a web form. To use a path outside the mounted folder, first change the main folder through the launcher.
 
 Examples for the web form (replace the username and match the displayed default folder):
 
@@ -142,8 +128,8 @@ docker compose logs -f
 # Stop the application
 docker compose stop
 
-# Start it again
-docker compose up -d
+# Restart the existing container with its configured folder
+docker compose start
 
 # Remove the container and network, keeping the named data volume
 docker compose down
@@ -196,7 +182,7 @@ The application is intended for personal, local use with trusted links, not publ
 
 Initial URL validation rejects private and local network addresses. This is **not a complete outbound firewall**: redirects, DNS rebinding and URLs inside media manifests may fall outside that initial check. Only submit trusted links. `ALLOW_PRIVATE_SOURCES=1` disables the initial private-address restriction for explicit local use; it is not enabled in the normal Compose configuration.
 
-URLs are stored in local history and may contain access tokens. Do not commit `.env`, databases, downloads or other personal runtime data. Python dependency advisory checks do not constitute a complete audit of FFmpeg, operating-system packages or the application.
+URLs are stored in local history and may contain access tokens. Do not commit databases, downloads or other personal runtime data. Python dependency advisory checks do not constitute a complete audit of FFmpeg, operating-system packages or the application.
 
 ## Updating dependencies
 

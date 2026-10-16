@@ -2,15 +2,15 @@ services:
   downloader:
     build: .
     ports:
-      - "127.0.0.1:${APP_PORT:-8765}:8000"
+      - "127.0.0.1:8765:8000"
     environment:
       DOWNLOAD_ROOT: /downloads
       DATA_ROOT: /data
       DENO_DIR: /tmp/deno
-      HOST_DOWNLOAD_ROOT: ${DOWNLOAD_DIR:?Set DOWNLOAD_DIR in .env or run the platform startup script}
+      HOST_DOWNLOAD_ROOT: ${DOWNLOAD_DIR:-./downloads}
     volumes:
       - type: bind
-        source: ${DOWNLOAD_DIR:?Set DOWNLOAD_DIR in .env or run the platform startup script}
+        source: ${DOWNLOAD_DIR:-./downloads}
         target: /downloads
       - state:/data
     restart: unless-stopped
